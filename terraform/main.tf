@@ -33,18 +33,6 @@ variable "change_description" {
   default     = "Initial network setup for London and US HQ"
 }
 
-# Local variables for metadata
-locals {
-  change_metadata = {
-    change_id          = var.change_id
-    change_requester   = var.change_requester
-    change_description = var.change_description
-    change_date        = formatdate("YYYY-MM-DD", timestamp())
-  }
-  
-  # Add metadata to descriptions
-  resource_description = "Change: ${var.change_id} - ${var.change_description} - By: ${var.change_requester} on ${formatdate("YYYY-MM-DD", timestamp())}"
-}
 
 # IP Host resources
 resource "sophosfirewall_iphost" "Gartner_London_BranchNetwork" {
@@ -67,74 +55,3 @@ resource "sophosfirewall_iphost" "Gartner_US_HO_Network" {
 
 
 
-
-# Generate change documentation file
-resource "local_file" "change_documentation" {
-  content = <<-EOT
-# Sophos Firewall Change Documentation
-## Change Details
-- **Change ID:** ${var.change_id}
-- **Requested By:** ${var.change_requester}
-- **Description:** ${var.change_description}
-- **Date:** ${formatdate("YYYY-MM-DD", timestamp())}
-
-## Resources Modified
-### Networks
-- **London Branch:** ${sophosfirewall_iphost.Gartner_London_BranchNetwork.name} (${sophosfirewall_iphost.Gartner_London_BranchNetwork.ip_address}/${sophosfirewall_iphost.Gartner_London_BranchNetwork.subnet})
-- **US HQ:** ${sophosfirewall_iphost.Gartner_US_HO_Network.name} (${sophosfirewall_iphost.Gartner_US_HO_Network.ip_address}/${sophosfirewall_iphost.Gartner_US_HO_Network.subnet})
-
-
-EOT
-
-  filename = "change_logs/${var.change_id}.md"
-}
-
-# Generate a JSON output for programmatic access
-resource "local_file" "change_json" {
-  content = jsonencode({
-    change_id          = var.change_id
-    change_requester   = var.change_requester
-    change_description = var.change_description
-    change_date        = formatdate("YYYY-MM-DD", timestamp())
-    resources = {
-      networks = [
-        {
-          name       = sophosfirewall_iphost.Gartner_London_BranchNetwork.name
-          ip_address = sophosfirewall_iphost.Gartner_London_BranchNetwork.ip_address
-          subnet     = sophosfirewall_iphost.Gartner_London_BranchNetwork.subnet
-        },
-        {
-          name       = sophosfirewall_iphost.Gartner_US_HO_Network.name
-          ip_address = sophosfirewall_iphost.Gartner_US_HO_Network.ip_address
-          subnet     = sophosfirewall_iphost.Gartner_US_HO_Network.subnet
-        }
-      ],
-      firewall_rules = [
-        {
-          name        = sophosfirewall_firewallrule.london_to_us_rule.name
-          source      = sophosfirewall_firewallrule.london_to_us_rule.source
-          destination = sophosfirewall_firewallrule.london_to_us_rule.destination
-          action      = sophosfirewall_firewallrule.london_to_us_rule.action
-        }
-      ]
-    }
-  })
-  filename = "change_logs/${var.change_id}.json"
-}
-
-# Output the change information
-output "change_info" {
-  value = local.change_metadata
-}
-
-output "resources_changed" {
-  value = {
-    networks = [
-      "${sophosfirewall_iphost.Gartner_London_BranchNetwork.name} (${sophosfirewall_iphost.Gartner_London_BranchNetwork.ip_address}/${sophosfirewall_iphost.Gartner_London_BranchNetwork.subnet})",
-      "${sophosfirewall_iphost.Gartner_US_HO_Network.name} (${sophosfirewall_iphost.Gartner_US_HO_Network.ip_address}/${sophosfirewall_iphost.Gartner_US_HO_Network.subnet})"
-    ],
-    firewall_rules = [
-      "${sophosfirewall_firewallrule.london_to_us_rule.name}: ${sophosfirewall_firewallrule.london_to_us_rule.source} to ${sophosfirewall_firewallrule.london_to_us_rule.destination}"
-    ]
-  }
-}
