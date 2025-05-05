@@ -81,7 +81,7 @@ jobs:
         continue-on-error: true
           
       - name: Store Terraform Plan
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tfplan
           path: tfplan
@@ -131,7 +131,7 @@ jobs:
         run: terraform init
         
       - name: Download Terraform Plan
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: tfplan
           
@@ -154,7 +154,7 @@ jobs:
           echo "```" >> change_report.md
           
       - name: Upload Change Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: change-report
           path: change_report.md
