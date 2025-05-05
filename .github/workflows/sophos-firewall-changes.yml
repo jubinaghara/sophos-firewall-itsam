@@ -43,6 +43,10 @@ jobs:
       tfplanexitcode: ${{ steps.plan.outputs.exitcode }}
       
     steps:
+
+      - name: Get Runner IP
+        run: echo "GitHub Actions Runner IP: $(curl -s https://api.ipify.org)"
+
       - name: Checkout Repository
         uses: actions/checkout@v3
 
