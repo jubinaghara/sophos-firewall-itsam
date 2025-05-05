@@ -16,13 +16,13 @@ provider "sophosfirewall" {
 
 # Variables for change tracking
 variable "change_id" {
-  description = "Change reference ID"
+  description = "CHG-DEMO-002"
   type        = string
   default     = "CHG-DEMO-001"
 }
 
 variable "change_requester" {
-  description = "Person requesting the change"
+  description = "Jubin Aghara"
   type        = string
   default     = "Gartner Demo"
 }
