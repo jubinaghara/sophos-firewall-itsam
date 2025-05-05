@@ -54,7 +54,6 @@ resource "sophosfirewall_iphost" "Gartner_London_BranchNetwork" {
   ip_address  = "192.168.2.0"
   subnet      = "255.255.255.0"
   host_groups = []
-  description = "London Branch Network - ${local.resource_description}"
 }
 
 resource "sophosfirewall_iphost" "Gartner_US_HO_Network" {
@@ -64,41 +63,10 @@ resource "sophosfirewall_iphost" "Gartner_US_HO_Network" {
   ip_address  = "192.168.2.0"
   subnet      = "255.255.255.0"
   host_groups = []
-  description = "US Headquarters Network - ${local.resource_description}"
 }
 
 
 
-resource "sophosfirewall_iphost" "Gartner_US_HO_Network3" {
-  name        = "Gartner_US_HO_Network3"
-  ip_family   = "IPv4"
-  host_type   = "Network"
-  ip_address  = "192.168.2.0"
-  subnet      = "255.255.255.0"
-  host_groups = []
-  description = "US Headquarters Network - ${local.resource_description}"
-}
-
-resource "sophosfirewall_iphost" "Gartner_US_HO_Network4" {
-  name        = "Gartner_US_HO_Network4"
-  ip_family   = "IPv4"
-  host_type   = "Network"
-  ip_address  = "192.168.2.0"
-  subnet      = "255.255.255.0"
-  host_groups = []
-  description = "US Headquarters Network - ${local.resource_description}"
-}
-
-
-# Example firewall rule between networks
-resource "sophosfirewall_firewallrule" "london_to_us_rule" {
-  name        = "LondonToUS_Access"
-  source      = sophosfirewall_iphost.Gartner_London_BranchNetwork.name
-  destination = sophosfirewall_iphost.Gartner_US_HO_Network.name
-  action      = "accept"
-  log         = true
-  description = "Allow London to US HQ - ${local.resource_description}"
-}
 
 # Generate change documentation file
 resource "local_file" "change_documentation" {
