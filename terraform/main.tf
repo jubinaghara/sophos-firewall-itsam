@@ -55,3 +55,11 @@ resource "sophosfirewall_iphost" "Gartner_US_HO_Network" {
 
 
 
+resource "sophosfirewall_iphost" "Gartner_US_HO_Network" {
+  name        = "Gartner_US_HO_Network"
+  ip_family   = "IPv4"
+  host_type   = "Network"
+  ip_address  = "192.168.2.0"
+  subnet      = "255.255.255.0"
+  host_groups = []
+}
