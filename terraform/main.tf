@@ -83,17 +83,6 @@ resource "local_file" "change_documentation" {
 - **London Branch:** ${sophosfirewall_iphost.Gartner_London_BranchNetwork.name} (${sophosfirewall_iphost.Gartner_London_BranchNetwork.ip_address}/${sophosfirewall_iphost.Gartner_London_BranchNetwork.subnet})
 - **US HQ:** ${sophosfirewall_iphost.Gartner_US_HO_Network.name} (${sophosfirewall_iphost.Gartner_US_HO_Network.ip_address}/${sophosfirewall_iphost.Gartner_US_HO_Network.subnet})
 
-### Firewall Rules
-- **London to US Rule:** ${sophosfirewall_firewallrule.london_to_us_rule.name}
-  - Source: ${sophosfirewall_firewallrule.london_to_us_rule.source}
-  - Destination: ${sophosfirewall_firewallrule.london_to_us_rule.destination}
-  - Action: ${sophosfirewall_firewallrule.london_to_us_rule.action}
-  - Logging: ${sophosfirewall_firewallrule.london_to_us_rule.log ? "Enabled" : "Disabled"}
-
-## Approval
-[ ] Approved by: _______________
-[ ] Implemented by: _______________
-[ ] Verified by: _______________
 
 EOT
 
