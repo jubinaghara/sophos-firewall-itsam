@@ -1,0 +1,179 @@
+name: Sophos Firewall ITSAM Workflow
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.tf'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.tf'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      change_ticket:
+        description: 'ITSAM Change Ticket ID'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  TF_LOG: INFO
+  SOPHOS_API_KEY: ${{ secrets.SOPHOS_API_KEY }}
+  SOPHOS_API_ENDPOINT: ${{ secrets.SOPHOS_API_ENDPOINT }}
+
+jobs:
+  terraform-validate:
+    name: Validate Terraform Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      tfplanexitcode: ${{ steps.plan.outputs.exitcode }}
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+          
+      - name: Terraform Init
+        id: init
+        run: terraform init
+          
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+          
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Update ITSAM Change Request Status
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.ITSAM_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status": "Validation Complete", "notes": "Terraform configuration validated successfully"}' \
+            ${{ secrets.ITSAM_API_URL }}/changes/${{ github.event.inputs.change_ticket }}
+            
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -detailed-exitcode -no-color -out=tfplan \
+            -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+        continue-on-error: true
+          
+      - name: Store Terraform Plan
+        uses: actions/upload-artifact@v3
+        with:
+          name: tfplan
+          path: tfplan
+          
+      - name: Create Plan Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "### Terraform Plan Results" >> plan_summary.md
+          echo "```" >> plan_summary.md
+          terraform show -no-color tfplan >> plan_summary.md
+          echo "```" >> plan_summary.md
+          
+      - name: Post Plan Summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const planSummary = fs.readFileSync('plan_summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: planSummary
+            });
+
+  terraform-apply:
+    name: Apply Terraform Changes
+    needs: terraform-validate
+    if: |
+      (github.event_name == 'workflow_dispatch' && needs.terraform-validate.outputs.tfplanexitcode == '2') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.terraform-validate.outputs.tfplanexitcode == '2')
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+          
+      - name: Terraform Init
+        run: terraform init
+        
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v3
+        with:
+          name: tfplan
+          
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        
+      - name: Generate Change Report
+        run: |
+          echo "# Sophos Firewall Configuration Change Report" > change_report.md
+          echo "**Date:** $(date)" >> change_report.md
+          echo "**Environment:** ${{ github.event.inputs.environment || 'dev' }}" >> change_report.md
+          echo "**Change Ticket:** ${{ github.event.inputs.change_ticket || 'N/A' }}" >> change_report.md
+          echo "**Applied By:** ${{ github.actor }}" >> change_report.md
+          echo "**Repository:** ${{ github.repository }}" >> change_report.md
+          echo "**Commit:** ${{ github.sha }}" >> change_report.md
+          echo "" >> change_report.md
+          echo "## Resources Changed" >> change_report.md
+          echo "```" >> change_report.md
+          terraform show -json | jq -r '.values.root_module.resources[] | "- " + .type + "." + .name + " (" + .values.name + ")"' >> change_report.md
+          echo "```" >> change_report.md
+          
+      - name: Upload Change Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: change-report
+          path: change_report.md
+          
+      - name: Update ITSAM Change Request Status
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          REPORT_CONTENT=$(cat change_report.md)
+          curl -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.ITSAM_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "status": "Implemented",
+              "notes": "Changes applied successfully",
+              "attachments": [
+                {
+                  "name": "change_report.md",
+                  "content": "'"${REPORT_CONTENT}"'"
+                }
+              ]
+            }' \
+            ${{ secrets.ITSAM_API_URL }}/changes/${{ github.event.inputs.change_ticket }}
