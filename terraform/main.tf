@@ -16,7 +16,7 @@ provider "sophosfirewall" {
 
 # Variables for change tracking
 variable "change_id" {
-  description = "CHG-DEMO-003"
+  description = "CHG-DEMO-005"
   type        = string
   default     = "CHG-DEMO-001"
 }
