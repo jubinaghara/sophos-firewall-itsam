@@ -54,15 +54,18 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
+        working-directory: ./terraform
           
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check
+        working-directory: ./terraform
         continue-on-error: true
           
       - name: Terraform Validate
         id: validate
         run: terraform validate
+        working-directory: ./terraform
 
       - name: Update ITSAM Change Request Status
         if: github.event_name == 'workflow_dispatch'
@@ -76,8 +79,10 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
+          cd terraform
           terraform plan -detailed-exitcode -no-color -out=tfplan \
             -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+        working-directory: ./terraform
         continue-on-error: true
           
       - name: Store Terraform Plan
@@ -93,6 +98,7 @@ jobs:
           echo "```" >> plan_summary.md
           terraform show -no-color tfplan >> plan_summary.md
           echo "```" >> plan_summary.md
+        working-directory: ./terraform
           
       - name: Post Plan Summary to PR
         if: github.event_name == 'pull_request'
@@ -128,15 +134,19 @@ jobs:
           terraform_version: 1.5.0
           
       - name: Terraform Init
+        id: init
         run: terraform init
+        working-directory: ./terraform
         
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
           name: tfplan
+          path: ./terraform
           
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+        working-directory: ./terraform
         
       - name: Generate Change Report
         run: |
@@ -152,12 +162,13 @@ jobs:
           echo "```" >> change_report.md
           terraform show -json | jq -r '.values.root_module.resources[] | "- " + .type + "." + .name + " (" + .values.name + ")"' >> change_report.md
           echo "```" >> change_report.md
-          
+        working-directory: ./terraform
+
       - name: Upload Change Report
         uses: actions/upload-artifact@v4
         with:
           name: change-report
-          path: change_report.md
+          path: terraform/change_report.md
           
       - name: Update ITSAM Change Request Status
         if: github.event_name == 'workflow_dispatch'
